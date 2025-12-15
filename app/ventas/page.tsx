@@ -166,7 +166,7 @@ export default function VentasPage({ fondoSrc }: VentasPageProps) {
       return
     }
     const wb = XLSX.utils.book_new()
-    const wsData = ventas.map(v => ({
+const wsData: any[] = ventas.map(v => ({
       Fecha: v.fecha,
       Hora: v.hora,
       Producto: v.producto,
@@ -217,7 +217,7 @@ export default function VentasPage({ fondoSrc }: VentasPageProps) {
 
   // 4️⃣ Crear Excel
   const wb = XLSX.utils.book_new()
-  const wsData = ventas.map(v => ({
+const wsData: any[] = ventas.map(v => ({
     Fecha: v.fecha,
     Hora: v.hora,
     Producto: v.producto,
