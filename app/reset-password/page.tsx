@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabaseClient'
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const search = useSearchParams()
   const router = useRouter()
 
@@ -80,7 +80,9 @@ export default function ResetPasswordPage() {
         <div className="row justify-content-center align-items-center min-vh-100">
           <div className="col-md-5">
             <div className="card bg-white bg-opacity-25 backdrop-blur p-4 p-md-5 border border-white border-opacity-25 shadow-lg">
-              <h2 className="text-white text-center mb-4">Restablecer contraseña</h2>
+              <h2 className="text-white text-center mb-4">
+                Restablecer contraseña
+              </h2>
 
               {message && (
                 <p className="text-center text-white-75 mb-3">{message}</p>
@@ -116,5 +118,13 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="text-center mt-5">Cargando...</div>}>
+      <ResetPasswordContent />
+    </Suspense>
   )
 }
