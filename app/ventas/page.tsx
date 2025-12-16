@@ -19,6 +19,7 @@ interface ProductoCarrito extends Producto {
 }
 
 interface Venta {
+  ventaId: string
   fecha: string
   hora: string
   producto: string
@@ -28,6 +29,7 @@ interface Venta {
   pagoQR: number
   total: number
 }
+
 
 interface VentasPageProps {
   fondoSrc: string
@@ -48,7 +50,21 @@ export default function VentasPage({ fondoSrc }: VentasPageProps) {
   const [passwordVerificacion, setPasswordVerificacion] = useState('')
   const [errorVerificacion, setErrorVerificacion] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [usuario, setUsuario] = useState<string>('')
 
+
+useEffect(() => {
+  const obtenerUsuario = async () => {
+    const { data } = await supabase.auth.getUser()
+    const email = data.user?.email
+
+    if (email) {
+      setUsuario(email.split('@')[0]) // 👈 solo antes del @
+    }
+  }
+
+  obtenerUsuario()
+}, [])
 
   // Cargar productos y ventas persistentes
   useEffect(() => {
@@ -131,64 +147,115 @@ export default function VentasPage({ fondoSrc }: VentasPageProps) {
 
 
   const finalizarCompra = () => {
-    const total = calcularTotalCompra()
-    const pagoQR = total - efectivo
-    if (efectivo + pagoQR < total) {
-      alert(`Debes pagar el total completo. Total: S/ ${total}`)
-      return
+  const total = calcularTotalCompra()
+  const pagoQR = Math.max(0, total - efectivo)
+
+  const fecha = new Date()
+  const fechaStr = fecha.toLocaleDateString()
+  const horaStr = fecha.toLocaleTimeString()
+
+  // 🔑 ID ÚNICO DE LA VENTA
+  const ventaId = `${Date.now()}`
+
+  const nuevasVentas: Venta[] = carrito.map(item => {
+    const totalItem = item.precio * item.cantidadSeleccionada
+    const proporcion = totalItem / total
+
+    return {
+      ventaId,
+      fecha: fechaStr,
+      hora: horaStr,
+      producto: item.nombre,
+      cantidad: item.cantidadSeleccionada,
+      precioUnitario: item.precio,
+      pagoEfectivo: Math.round(Math.min(efectivo, total) * proporcion * 100) / 100,
+      pagoQR: Math.round(pagoQR * proporcion * 100) / 100,
+      total: totalItem
     }
+  })
 
-    const fecha = new Date()
-    const fechaStr = fecha.toLocaleDateString()
-    const horaStr = fecha.toLocaleTimeString()
+  setVentas([...ventas, ...nuevasVentas])
 
-    const nuevasVentas: Venta[] = carrito.map(item => {
-      const totalItem = item.precio * item.cantidadSeleccionada
-      const proporcion = totalItem / total
-      return {
-        fecha: fechaStr,
-        hora: horaStr,
-        producto: item.nombre,
-        cantidad: item.cantidadSeleccionada,
-        precioUnitario: item.precio,
-        pagoEfectivo: Math.round(efectivo * proporcion * 100) / 100,
-        pagoQR: Math.round(pagoQR * proporcion * 100) / 100,
-        total: totalItem
-      }
-    })
+  alert('✅ Compra finalizada')
 
-    setVentas([...ventas, ...nuevasVentas])
-    alert(`Compra finalizada! Total: S/ ${total} | Efectivo: S/ ${efectivo} | QR: S/ ${pagoQR < 0 ? 0 : pagoQR} | Vuelto: S/ ${vuelto}`)
-    setCarrito([])
-    setModalFinal(false)
-    setEfectivo(0)
-    setVuelto(0)
-  }
+  setCarrito([])
+  setModalFinal(false)
+  setEfectivo(0)
+  setVuelto(0)
+}
+
+
 
   const exportarExcel = () => {
-    if (ventas.length === 0) {
-      alert('No hay ventas registradas.')
-      return
+  if (ventas.length === 0) return
+
+  const wb = XLSX.utils.book_new()
+  const wsData: any[] = []
+
+  const ventasAgrupadas: Record<string, Venta[]> = {}
+
+  ventas.forEach(v => {
+    if (!ventasAgrupadas[v.ventaId]) {
+      ventasAgrupadas[v.ventaId] = []
     }
-    const wb = XLSX.utils.book_new()
-const wsData: any[] = ventas.map(v => ({
-      Fecha: v.fecha,
-      Hora: v.hora,
-      Producto: v.producto,
-      Cantidad: v.cantidad,
-      'Precio Unitario': v.precioUnitario,
-      'Pago Efectivo': v.pagoEfectivo,
-      'Pago QR': v.pagoQR,
-      Total: v.total
-    }))
-    const totalEfectivo = ventas.reduce((acc, v) => acc + v.pagoEfectivo, 0)
-    const totalQR = ventas.reduce((acc, v) => acc + v.pagoQR, 0)
-    wsData.push({}, { Producto: 'TOTAL EFECTIVO', 'Pago Efectivo': totalEfectivo }, { Producto: 'TOTAL QR', 'Pago QR': totalQR })
-    const ws = XLSX.utils.json_to_sheet(wsData, { skipHeader: false })
-    XLSX.utils.book_append_sheet(wb, ws, 'Ventas')
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
-    saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'ventas.xlsx')
-  }
+    ventasAgrupadas[v.ventaId].push(v)
+  })
+
+  let nro = 1
+
+  Object.values(ventasAgrupadas).forEach(items => {
+    wsData.push(
+      { Producto: `VENTA ${nro}` },
+      { Producto: `Fecha: ${items[0].fecha}`, Cantidad: `Hora: ${items[0].hora}` },
+      {}
+    )
+
+    wsData.push({
+      Producto: 'Producto',
+      Cantidad: 'Cantidad',
+      'Precio Unitario': 'Precio Unitario',
+      'Pago Efectivo': 'Pago Efectivo',
+      'Pago QR': 'Pago QR',
+      Total: 'Total'
+    })
+
+    let totalEfe = 0
+    let totalQR = 0
+
+    items.forEach(v => {
+      totalEfe += v.pagoEfectivo
+      totalQR += v.pagoQR
+
+      wsData.push({
+        Producto: v.producto,
+        Cantidad: v.cantidad,
+        'Precio Unitario': v.precioUnitario,
+        'Pago Efectivo': v.pagoEfectivo,
+        'Pago QR': v.pagoQR,
+        Total: v.total
+      })
+    })
+
+    wsData.push(
+      {},
+      { Producto: 'TOTAL EFECTIVO', 'Pago Efectivo': totalEfe },
+      { Producto: 'TOTAL QR', 'Pago QR': totalQR },
+      {},
+      {}
+    )
+
+    nro++
+  })
+
+  const ws = XLSX.utils.json_to_sheet(wsData, { skipHeader: true })
+  XLSX.utils.book_append_sheet(wb, ws, 'Ventas')
+
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+  saveAs(new Blob([wbout]), 'ventas_por_turno.xlsx')
+}
+
+
+
 
   const validarPasswordYEnviarCorreo = async () => {
   setErrorVerificacion('')
@@ -220,30 +287,66 @@ const wsData: any[] = ventas.map(v => ({
     return
   }
 
-  // 4️⃣ Crear Excel
+  // 4️⃣ Crear Excel AGRUPADO POR VENTA
   const wb = XLSX.utils.book_new()
+  const wsData: any[] = []
 
-  const wsData: any[] = ventas.map(v => ({
-    Fecha: v.fecha,
-    Hora: v.hora,
-    Producto: v.producto,
-    Cantidad: v.cantidad,
-    'Precio Unitario': v.precioUnitario,
-    'Pago Efectivo': v.pagoEfectivo,
-    'Pago QR': v.pagoQR,
-    Total: v.total
-  }))
+  const ventasAgrupadas: Record<string, Venta[]> = {}
 
-  const totalEfectivo = ventas.reduce((acc, v) => acc + v.pagoEfectivo, 0)
-  const totalQR = ventas.reduce((acc, v) => acc + v.pagoQR, 0)
+  ventas.forEach(v => {
+    if (!ventasAgrupadas[v.ventaId]) {
+      ventasAgrupadas[v.ventaId] = []
+    }
+    ventasAgrupadas[v.ventaId].push(v)
+  })
 
-  wsData.push(
-    {},
-    { Producto: 'TOTAL EFECTIVO', 'Pago Efectivo': totalEfectivo },
-    { Producto: 'TOTAL QR', 'Pago QR': totalQR }
-  )
+  let nroVenta = 1
 
-  const ws = XLSX.utils.json_to_sheet(wsData)
+  Object.values(ventasAgrupadas).forEach(items => {
+    wsData.push(
+      { Producto: `VENTA ${nroVenta}` },
+      { Producto: `Fecha: ${items[0].fecha}`, Cantidad: `Hora: ${items[0].hora}` },
+      {}
+    )
+
+    wsData.push({
+      Producto: 'Producto',
+      Cantidad: 'Cantidad',
+      'Precio Unitario': 'Precio Unitario',
+      'Pago Efectivo': 'Pago Efectivo',
+      'Pago QR': 'Pago QR',
+      Total: 'Total'
+    })
+
+    let totalEfectivo = 0
+    let totalQR = 0
+
+    items.forEach(v => {
+      totalEfectivo += v.pagoEfectivo
+      totalQR += v.pagoQR
+
+      wsData.push({
+        Producto: v.producto,
+        Cantidad: v.cantidad,
+        'Precio Unitario': v.precioUnitario,
+        'Pago Efectivo': v.pagoEfectivo,
+        'Pago QR': v.pagoQR,
+        Total: v.total
+      })
+    })
+
+    wsData.push(
+      {},
+      { Producto: 'TOTAL EFECTIVO', 'Pago Efectivo': totalEfectivo },
+      { Producto: 'TOTAL QR', 'Pago QR': totalQR },
+      {},
+      {}
+    )
+
+    nroVenta++
+  })
+
+  const ws = XLSX.utils.json_to_sheet(wsData, { skipHeader: true })
   XLSX.utils.book_append_sheet(wb, ws, 'Ventas')
 
   const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
@@ -252,7 +355,7 @@ const wsData: any[] = ventas.map(v => ({
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   })
 
-  // ⬇️ DESCARGA AUTOMÁTICA DEL EXCEL
+  // ⬇️ Descarga automática
   saveAs(
     blob,
     `cierre_turno_${new Date().toLocaleDateString().replaceAll('/', '-')}.xlsx`
@@ -311,7 +414,7 @@ const wsData: any[] = ventas.map(v => ({
       <div style={{ position: 'relative', zIndex: 1 }}>
         {/* Navbar */}
         <nav className="navbar navbar-expand-lg navbar-dark bg-dark rounded mb-4 px-3">
-          <a className="navbar-brand fw-bold" href="#">🛒 Licorería</a>
+          <a className="navbar-brand fw-bold" href="#">Licorería Popo</a>
           <div className="collapse navbar-collapse">
             <form className="d-flex ms-auto" onSubmit={e => e.preventDefault()}>
               <input
@@ -322,6 +425,9 @@ const wsData: any[] = ventas.map(v => ({
                 onChange={e => setBuscar(e.target.value)}
               />
             </form>
+            <span className="text-white me-3">
+            <strong> Bienvenido {usuario}</strong>
+            </span>
             <button className="btn btn-outline-warning ms-2" onClick={logout}>Cerrar sesión</button>
           </div>
         </nav>
