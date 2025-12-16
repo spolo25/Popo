@@ -193,7 +193,7 @@ const wsData: any[] = ventas.map(v => ({
   const validarPasswordYEnviarCorreo = async () => {
   setErrorVerificacion('')
 
-  // 1️⃣ Obtener usuario actual
+  // 1️⃣ Usuario actual
   const { data } = await supabase.auth.getUser()
   const email = data.user?.email
 
@@ -213,7 +213,7 @@ const wsData: any[] = ventas.map(v => ({
     return
   }
 
-  // 3️⃣ Validar que existan ventas
+  // 3️⃣ Validar ventas
   if (ventas.length === 0) {
     alert('No hay ventas para cerrar el turno.')
     setModalVerificacion(false)
@@ -222,7 +222,8 @@ const wsData: any[] = ventas.map(v => ({
 
   // 4️⃣ Crear Excel
   const wb = XLSX.utils.book_new()
-const wsData: any[] = ventas.map(v => ({
+
+  const wsData: any[] = ventas.map(v => ({
     Fecha: v.fecha,
     Hora: v.hora,
     Producto: v.producto,
@@ -246,7 +247,16 @@ const wsData: any[] = ventas.map(v => ({
   XLSX.utils.book_append_sheet(wb, ws, 'Ventas')
 
   const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
-  const blob = new Blob([excelBuffer], { type: 'application/octet-stream' })
+
+  const blob = new Blob([excelBuffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  })
+
+  // ⬇️ DESCARGA AUTOMÁTICA DEL EXCEL
+  saveAs(
+    blob,
+    `cierre_turno_${new Date().toLocaleDateString().replaceAll('/', '-')}.xlsx`
+  )
 
   // 5️⃣ Enviar correo
   const formData = new FormData()
@@ -263,14 +273,15 @@ const wsData: any[] = ventas.map(v => ({
     return
   }
 
-  // 6️⃣ Cierre definitivo del turno
-  alert('✅ Turno cerrado correctamente y reporte enviado.')
+  // 6️⃣ Cierre definitivo
+  alert('✅ Turno cerrado, Excel descargado y correo enviado.')
 
   setVentas([])
   localStorage.removeItem('ventas')
   setPasswordVerificacion('')
   setModalVerificacion(false)
 }
+
 
 
   return (
@@ -339,12 +350,6 @@ const wsData: any[] = ventas.map(v => ({
           ))}
         </div>
 
-        
-
-        {/* Exportar ventas */}
-        {ventas.length > 0 && (
-          <button className="btn btn-info mb-4" onClick={exportarExcel}>📄 Exportar ventas a Excel</button>
-        )}
 
         {/* Cerrar turno */}
         <button className="btn btn-danger mb-5" onClick={() => setModalVerificacion(true)}>Cerrar turno</button>
@@ -454,14 +459,13 @@ const wsData: any[] = ventas.map(v => ({
 
             <label className="form-label mt-2">Pago en efectivo</label>
             <input
-  type="number"
-  className="form-control"
-  min={0}
-  value={efectivo}
-  onChange={e => handleEfectivoChange(Number(e.target.value))}
-  placeholder="Ejemplo: 100"
-/>
-
+              type="number"
+              className="form-control"
+              min={0}
+              value={efectivo}
+              onChange={e => handleEfectivoChange(Number(e.target.value))}
+              placeholder="Ejemplo: 100"
+            />
 
             <div className="mt-2">
               <p className="mb-1">
