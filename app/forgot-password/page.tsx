@@ -16,14 +16,23 @@ export default function ForgotPasswordPage() {
 
     setLoading(true)
 
+    // ✅ URL dinámica (local o producción)
+    const redirectTo =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/reset-password`
+        : ''
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'http://localhost:3000/reset-password'
+      redirectTo
     })
 
     setLoading(false)
 
-    if (error) setMensaje(error.message)
-    else setMensaje('Revisa tu correo para continuar con la recuperación.')
+    if (error) {
+      setMensaje(error.message)
+    } else {
+      setMensaje('Revisa tu correo para continuar con la recuperación.')
+    }
   }
 
   return (
@@ -35,10 +44,8 @@ export default function ForgotPasswordPage() {
         backgroundPosition: 'center',
       }}
     >
-      {/* Overlay oscuro */}
       <div className="position-absolute top-0 start-0 w-100 h-100 bg-dark opacity-50"></div>
 
-      {/* Contenedor */}
       <div className="position-relative container z-1">
         <div className="row justify-content-center">
           <div className="col-md-5 col-lg-4">
