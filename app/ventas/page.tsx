@@ -47,6 +47,8 @@ export default function VentasPage({ fondoSrc }: VentasPageProps) {
   const [modalVerificacion, setModalVerificacion] = useState(false)
   const [passwordVerificacion, setPasswordVerificacion] = useState('')
   const [errorVerificacion, setErrorVerificacion] = useState('')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
 
   // Cargar productos y ventas persistentes
   useEffect(() => {
@@ -109,21 +111,24 @@ export default function VentasPage({ fondoSrc }: VentasPageProps) {
     } else {
       setCarrito([...carrito, { ...modalProducto, cantidadSeleccionada: cantidad }])
     }
+    setSidebarOpen(true) // 👈 ABRE LA BARRA
     setModalProducto(null)
   }
 
   const calcularTotalCompra = () => carrito.reduce((acc, item) => acc + item.precio * item.cantidadSeleccionada, 0)
 
-  const handleEfectivoChange = (valor: number) => {
-    const total = calcularTotalCompra()
-    if (valor > total) {
-      setEfectivo(total)
-      setVuelto(valor - total)
-    } else {
-      setEfectivo(valor)
-      setVuelto(0)
-    }
+ const handleEfectivoChange = (valor: number) => {
+  const total = calcularTotalCompra()
+
+  setEfectivo(valor)
+
+  if (valor >= total) {
+    setVuelto(valor - total)
+  } else {
+    setVuelto(0)
   }
+}
+
 
   const finalizarCompra = () => {
     const total = calcularTotalCompra()
@@ -334,24 +339,7 @@ const wsData: any[] = ventas.map(v => ({
           ))}
         </div>
 
-        {/* Carrito */}
-        {carrito.length > 0 && (
-          <div className="card mb-4 shadow-sm">
-            <div className="card-body">
-              <h5 className="card-title">Carrito de compra</h5>
-              <ul className="list-group list-group-flush mb-3">
-                {carrito.map(item => (
-                  <li key={item.id} className="list-group-item d-flex justify-content-between">
-                    {item.nombre} x {item.cantidadSeleccionada}
-                    <span>S/ {item.precio * item.cantidadSeleccionada}</span>
-                  </li>
-                ))}
-              </ul>
-              <p><strong>Total compra:</strong> S/ {calcularTotalCompra()}</p>
-              <button className="btn btn-success" onClick={() => setModalFinal(true)}>Finalizar compra</button>
-            </div>
-          </div>
-        )}
+        
 
         {/* Exportar ventas */}
         {ventas.length > 0 && (
@@ -421,46 +409,167 @@ const wsData: any[] = ventas.map(v => ({
         )}
 
         {/* Modal final compra */}
-        {modalFinal && (
-          <div className="modal show d-block" tabIndex={-1}>
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title">Finalizar compra</h5>
-                  <button type="button" className="btn-close" onClick={() => setModalFinal(false)}></button>
+{modalFinal && (
+  <div className="modal show d-block" tabIndex={-1}>
+    <div className="modal-dialog modal-dialog-centered modal-lg">
+      <div className="modal-content shadow-lg">
+        
+        {/* Header */}
+        <div className="modal-header bg-dark text-white">
+          <h5 className="modal-title"> Finalizar compra</h5>
+          <button
+            type="button"
+            className="btn-close btn-close-white"
+            onClick={() => setModalFinal(false)}
+          ></button>
+        </div>
+
+        {/* Body */}
+        <div className="modal-body">
+          {/* Productos */}
+          <ul className="list-group mb-3">
+            {carrito.map(item => (
+              <li
+                key={item.id}
+                className="list-group-item d-flex justify-content-between align-items-center"
+              >
+                <div>
+                  <strong>{item.nombre}</strong>
+                  <div className="text-muted small">
+                    {item.cantidadSeleccionada} × S/ {item.precio}
+                  </div>
                 </div>
-                <div className="modal-body">
-                  <ul className="list-group mb-3">
-                    {carrito.map(item => (
-                      <li key={item.id} className="list-group-item d-flex justify-content-between">
-                        {item.nombre} x {item.cantidadSeleccionada}
-                        <span>S/ {item.precio * item.cantidadSeleccionada}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <p><strong>Total:</strong> S/ {calcularTotalCompra()}</p>
-                  <input
-                    type="number"
-                    className="form-control mb-2"
-                    min={0}
-                    max={calcularTotalCompra()}
-                    value={efectivo}
-                    onChange={e => handleEfectivoChange(Number(e.target.value))}
-                    placeholder="Pago en efectivo"
-                  />
-                  <p>Pago en QR: S/ {calcularTotalCompra() - efectivo < 0 ? 0 : calcularTotalCompra() - efectivo}</p>
-                  <p>Vuelto: S/ {vuelto}</p>
-                </div>
-                <div className="modal-footer">
-                  <button className="btn btn-secondary" onClick={() => setModalFinal(false)}>Cancelar</button>
-                  <button className="btn btn-success" onClick={finalizarCompra}>Confirmar pago</button>
-                </div>
-              </div>
+                <span className="fw-bold">
+                  S/ {item.precio * item.cantidadSeleccionada}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          {/* Totales */}
+          <div className="border rounded p-3 mb-3 bg-light">
+            <p className="mb-1">
+              <strong>Total a pagar:</strong> S/ {calcularTotalCompra()}
+            </p>
+
+            <label className="form-label mt-2">Pago en efectivo</label>
+            <input
+  type="number"
+  className="form-control"
+  min={0}
+  value={efectivo}
+  onChange={e => handleEfectivoChange(Number(e.target.value))}
+  placeholder="Ejemplo: 100"
+/>
+
+
+            <div className="mt-2">
+              <p className="mb-1">
+                 Pago en QR: <strong>S/ {Math.max(0, calcularTotalCompra() - efectivo)}</strong>
+              </p>
+              <p className={`mb-0 fw-bold ${vuelto > 0 ? 'text-success' : ''}`}>
+                 Vuelto: S/ {vuelto}
+              </p>
             </div>
           </div>
-        )}
+        </div>
+
+        {/* Footer */}
+        <div className="modal-footer">
+          <button
+            className="btn btn-outline-secondary"
+            onClick={() => setModalFinal(false)}
+          >
+            Cancelar
+          </button>
+          <button
+            className="btn btn-success px-4"
+            onClick={finalizarCompra}
+          >
+            Confirmar pago
+          </button>
+        </div>
 
       </div>
+    </div>
+  </div>
+)}
+
+
+      </div>
+      <button
+  onClick={() => setSidebarOpen(!sidebarOpen)}
+  style={{
+    position: 'fixed',
+    top: '50%',
+    right: sidebarOpen ? '320px' : '0',
+    transform: 'translateY(-50%)',
+    zIndex: 999,
+    borderRadius: '8px 0 0 8px'
+  }}
+  className="btn btn-warning"
+>
+  🧾
+</button>
+{/* Sidebar carrito */}
+<div
+  style={{
+    position: 'fixed',
+    top: 0,
+    right: sidebarOpen ? 0 : '-320px',
+    width: '320px',
+    height: '100vh',
+    backgroundColor: '#111',
+    color: '#fff',
+    padding: '15px',
+    transition: 'right 0.3s ease',
+    zIndex: 998,
+    overflowY: 'auto'
+  }}
+>
+  <h5 className="mb-3">🛒 Productos seleccionados</h5>
+
+  {carrito.length === 0 ? (
+    <p className="text-muted">No hay productos</p>
+  ) : (
+    <ul className="list-group list-group-flush">
+      {carrito.map(item => (
+        <li
+          key={item.id}
+          className="list-group-item bg-dark text-white d-flex justify-content-between align-items-center"
+        >
+          <div>
+            <strong>{item.nombre}</strong>
+            <div className="small">
+              S/ {item.precio} x {item.cantidadSeleccionada}
+            </div>
+          </div>
+          <span>
+            S/ {item.precio * item.cantidadSeleccionada}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  <hr />
+
+  <p>
+    <strong>Total:</strong> S/ {calcularTotalCompra()}
+  </p>
+
+  <button
+    className="btn btn-success w-100"
+    onClick={() => {
+      setModalFinal(true)
+      setSidebarOpen(false)
+    }}
+    disabled={carrito.length === 0}
+  >
+    Finalizar compra
+  </button>
+</div>
+
     </div>
   )
 }
