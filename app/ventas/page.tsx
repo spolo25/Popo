@@ -562,6 +562,7 @@ wsData.push(
   max={modalProducto.stock}
   value={cantidad}
   onChange={e => setCantidad(e.target.value)}
+  placeholder='Cantidad a vender'
 />
 
                 </div>
