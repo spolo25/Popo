@@ -110,7 +110,7 @@ useEffect(() => {
 
   const openModal = (producto: Producto) => {
     setModalProducto(producto)
-    setCantidad(1)
+    setCantidad('1')
     setEfectivo('')
     setVuelto(0)
   }
