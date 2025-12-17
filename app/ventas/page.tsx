@@ -467,24 +467,37 @@ wsData.push(
       {/* Contenido */}
       <div style={{ position: 'relative', zIndex: 1 }}>
         {/* Navbar */}
-        <nav className="navbar navbar-expand-lg navbar-dark bg-dark rounded mb-4 px-3">
-          <a className="navbar-brand fw-bold" href="#">Licorería Popo</a>
-          <div className="collapse navbar-collapse">
-            <form className="d-flex ms-auto" onSubmit={e => e.preventDefault()}>
-              <input
-                className="form-control me-2"
-                type="search"
-                placeholder="Buscar producto..."
-                value={buscar}
-                onChange={e => setBuscar(e.target.value)}
-              />
-            </form>
-            <span className="text-white me-3">
-            <strong> Bienvenido {usuario}</strong>
-            </span>
-            <button className="btn btn-outline-warning ms-2" onClick={logout}>Cerrar sesión</button>
-          </div>
-        </nav>
+<nav
+  className="navbar navbar-expand-lg navbar-dark bg-dark px-3 sticky-top"
+  style={{ zIndex: 1000 }}
+>
+  <a className="navbar-brand fw-bold" href="#">Licorería Popo</a>
+
+  <div className="collapse navbar-collapse">
+    <form className="d-flex ms-auto">
+      <input
+        className="form-control me-2"
+        placeholder="Buscar producto..."
+        value={buscar}
+        onChange={e => setBuscar(e.target.value)}
+      />
+    </form>
+
+    <span className="text-white me-3">
+      <strong>Bienvenido {usuario}</strong>
+    </span>
+
+    <button
+      className="btn btn-outline-warning"
+      onClick={logout}
+    >
+      Cerrar sesión
+    </button>
+  </div>
+</nav>
+
+{/* ESPACIO DE SEGURIDAD */}
+<div style={{ height: '80px' }}></div>
 
         {/* Productos */}
         <div className="row g-3 mb-4">
@@ -556,14 +569,14 @@ wsData.push(
                   <img src={modalProducto.imagen_url || '/default-product.png'} alt={modalProducto.nombre} className="img-fluid mb-3" />
                   <p><strong>Precio:</strong> S/ {modalProducto.precio}</p>
                   <input
-  type="number"
-  className="form-control mb-3"
-  min={1}
-  max={modalProducto.stock}
-  value={cantidad}
-  onChange={e => setCantidad(e.target.value)}
-  placeholder='Cantidad a vender'
-/>
+                  type="number"
+                  className="form-control mb-3"
+                  min={1}
+                  max={modalProducto.stock}
+                  value={cantidad}
+                  onChange={e => setCantidad(e.target.value)}
+                  placeholder='Cantidad a vender'
+                  />
 
                 </div>
                 <div className="modal-footer">
