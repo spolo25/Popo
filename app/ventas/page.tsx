@@ -39,8 +39,8 @@ export default function VentasPage({ fondoSrc }: VentasPageProps) {
   const [productos, setProductos] = useState<Producto[]>([])
   const [buscar, setBuscar] = useState('')
   const [modalProducto, setModalProducto] = useState<Producto | null>(null)
-  const [cantidad, setCantidad] = useState(1)
-  const [efectivo, setEfectivo] = useState<number>(0)
+  const [cantidad, setCantidad] = useState<string>('1')
+const [efectivo, setEfectivo] = useState<string>('')
   const [vuelto, setVuelto] = useState<number>(0)
   const [carrito, setCarrito] = useState<ProductoCarrito[]>([])
   const [modalFinal, setModalFinal] = useState(false)
@@ -111,50 +111,64 @@ useEffect(() => {
   const openModal = (producto: Producto) => {
     setModalProducto(producto)
     setCantidad(1)
-    setEfectivo(0)
+    setEfectivo('')
     setVuelto(0)
   }
 
   const agregarAlCarrito = () => {
-    if (!modalProducto) return
-    const existe = carrito.find(p => p.id === modalProducto.id)
-    if (existe) {
-      setCarrito(carrito.map(p =>
-        p.id === modalProducto.id
-          ? { ...p, cantidadSeleccionada: p.cantidadSeleccionada + cantidad }
-          : p
-      ))
-    } else {
-      setCarrito([...carrito, { ...modalProducto, cantidadSeleccionada: cantidad }])
-    }
-    setSidebarOpen(true) // 👈 ABRE LA BARRA
-    setModalProducto(null)
+  if (!modalProducto) return
+
+  const cant = Number(cantidad) || 1
+
+  const existe = carrito.find(p => p.id === modalProducto.id)
+
+  if (existe) {
+    setCarrito(carrito.map(p =>
+      p.id === modalProducto.id
+        ? { ...p, cantidadSeleccionada: p.cantidadSeleccionada + cant }
+        : p
+    ))
+  } else {
+    setCarrito([...carrito, { ...modalProducto, cantidadSeleccionada: cant }])
   }
+
+  setSidebarOpen(true)
+  setModalProducto(null)
+}
+
 
   const calcularTotalCompra = () => carrito.reduce((acc, item) => acc + item.precio * item.cantidadSeleccionada, 0)
 
- const handleEfectivoChange = (valor: number) => {
-  const total = calcularTotalCompra()
-
+ const handleEfectivoChange = (valor: string) => {
   setEfectivo(valor)
 
-  if (valor >= total) {
-    setVuelto(valor - total)
+  const total = calcularTotalCompra()
+  const monto = Number(valor)
+
+  // Permitir borrar el input
+  if (valor === '' || isNaN(monto)) {
+    setVuelto(0)
+    return
+  }
+
+  if (monto >= total) {
+    setVuelto(monto - total)
   } else {
     setVuelto(0)
   }
 }
 
 
+
   const finalizarCompra = () => {
   const total = calcularTotalCompra()
-  const pagoQR = Math.max(0, total - efectivo)
+  const efectivoNum = Number(efectivo) || 0
+  const pagoQR = Math.max(0, total - efectivoNum)
 
   const fecha = new Date()
   const fechaStr = fecha.toLocaleDateString()
   const horaStr = fecha.toLocaleTimeString()
 
-  // 🔑 ID ÚNICO DE LA VENTA
   const ventaId = `${Date.now()}`
 
   const nuevasVentas: Venta[] = carrito.map(item => {
@@ -168,7 +182,7 @@ useEffect(() => {
       producto: item.nombre,
       cantidad: item.cantidadSeleccionada,
       precioUnitario: item.precio,
-      pagoEfectivo: Math.round(Math.min(efectivo, total) * proporcion * 100) / 100,
+      pagoEfectivo: Math.round(Math.min(efectivoNum, total) * proporcion * 100) / 100,
       pagoQR: Math.round(pagoQR * proporcion * 100) / 100,
       total: totalItem
     }
@@ -180,9 +194,10 @@ useEffect(() => {
 
   setCarrito([])
   setModalFinal(false)
-  setEfectivo(0)
+  setEfectivo('')
   setVuelto(0)
 }
+
 
 
 
@@ -192,6 +207,30 @@ useEffect(() => {
   const wb = XLSX.utils.book_new()
   const wsData: any[] = []
 
+  // 🔴 RESUMEN GENERAL DEL TURNO
+  const totalEfectivoTurno = ventas.reduce(
+    (acc, v) => acc + v.pagoEfectivo,
+    0
+  )
+
+  const totalQRTurno = ventas.reduce(
+    (acc, v) => acc + v.pagoQR,
+    0
+  )
+
+  const totalTurno = totalEfectivoTurno + totalQRTurno
+
+  wsData.push(
+    { Producto: 'RESUMEN GENERAL DEL TURNO' },
+    {},
+    { Producto: 'TOTAL EFECTIVO TURNO', Total: totalEfectivoTurno },
+    { Producto: 'TOTAL QR TURNO', Total: totalQRTurno },
+    { Producto: 'TOTAL VENDIDO TURNO', Total: totalTurno },
+    {},
+    {}
+  )
+
+  // 🔴 AGRUPAR VENTAS POR ventaId
   const ventasAgrupadas: Record<string, Venta[]> = {}
 
   ventas.forEach(v => {
@@ -257,6 +296,7 @@ useEffect(() => {
 
 
 
+
   const validarPasswordYEnviarCorreo = async () => {
   setErrorVerificacion('')
 
@@ -290,6 +330,20 @@ useEffect(() => {
   // 4️⃣ Crear Excel AGRUPADO POR VENTA
   const wb = XLSX.utils.book_new()
   const wsData: any[] = []
+  const totalEfectivoTurno = ventas.reduce((acc, v) => acc + v.pagoEfectivo, 0)
+const totalQRTurno = ventas.reduce((acc, v) => acc + v.pagoQR, 0)
+const totalTurno = totalEfectivoTurno + totalQRTurno
+
+wsData.push(
+  { Producto: 'RESUMEN GENERAL DEL TURNO' },
+  {},
+  { Producto: 'TOTAL EFECTIVO TURNO', Total: totalEfectivoTurno },
+  { Producto: 'TOTAL QR TURNO', Total: totalQRTurno },
+  { Producto: 'TOTAL VENDIDO TURNO', Total: totalTurno },
+  {},
+  {}
+)
+
 
   const ventasAgrupadas: Record<string, Venta[]> = {}
 
@@ -502,13 +556,14 @@ useEffect(() => {
                   <img src={modalProducto.imagen_url || '/default-product.png'} alt={modalProducto.nombre} className="img-fluid mb-3" />
                   <p><strong>Precio:</strong> S/ {modalProducto.precio}</p>
                   <input
-                    type="number"
-                    className="form-control mb-3"
-                    min={1}
-                    max={modalProducto.stock}
-                    value={cantidad}
-                    onChange={e => setCantidad(Number(e.target.value))}
-                  />
+  type="number"
+  className="form-control mb-3"
+  min={1}
+  max={modalProducto.stock}
+  value={cantidad}
+  onChange={e => setCantidad(e.target.value)}
+/>
+
                 </div>
                 <div className="modal-footer">
                   <button className="btn btn-secondary" onClick={() => setModalProducto(null)}>Cancelar</button>
@@ -565,17 +620,18 @@ useEffect(() => {
 
             <label className="form-label mt-2">Pago en efectivo</label>
             <input
-              type="number"
-              className="form-control"
-              min={0}
-              value={efectivo}
-              onChange={e => handleEfectivoChange(Number(e.target.value))}
-              placeholder="Ejemplo: 100"
-            />
+  type="number"
+  className="form-control"
+  min={0}
+  value={efectivo}
+  onChange={e => handleEfectivoChange(e.target.value)}
+  placeholder="Colocar en caso se pague en efectivo"
+/>
+
 
             <div className="mt-2">
               <p className="mb-1">
-                 Pago en QR: <strong>S/ {Math.max(0, calcularTotalCompra() - efectivo)}</strong>
+                 Pago en QR: <strong> S/ {Math.max(0, calcularTotalCompra() - (Number(efectivo) || 0))}</strong>
               </p>
               <p className={`mb-0 fw-bold ${vuelto > 0 ? 'text-success' : ''}`}>
                  Vuelto: S/ {vuelto}
