@@ -438,6 +438,9 @@ wsData.push(
   setPasswordVerificacion('')
   setModalVerificacion(false)
 }
+const eliminarDelCarrito = (id: number) => {
+  setCarrito(carrito.filter(item => item.id !== id))
+}
 
 
 
@@ -504,7 +507,16 @@ wsData.push(
           {productosFiltrados.map(p => (
             <div key={p.id} className="col-6 col-md-4 col-lg-3">
               <div className="card h-100 shadow-sm">
-                <img src={p.imagen_url || '/default-product.png'} className="card-img-top" alt={p.nombre} />
+                <img
+                src={p.imagen_url || '/default-product.png'}
+                alt={p.nombre}
+                style={{
+                height: '180px',
+                objectFit: 'cover'
+                }}
+                className="card-img-top"
+                />
+
                 <div className="card-body d-flex flex-column">
                   <h5 className="card-title">{p.nombre}</h5>
                   <p className="card-text flex-grow-1">{p.descripcion}</p>
@@ -609,21 +621,33 @@ wsData.push(
           {/* Productos */}
           <ul className="list-group mb-3">
             {carrito.map(item => (
-              <li
-                key={item.id}
-                className="list-group-item d-flex justify-content-between align-items-center"
-              >
-                <div>
-                  <strong>{item.nombre}</strong>
-                  <div className="text-muted small">
-                    {item.cantidadSeleccionada} × S/ {item.precio}
-                  </div>
-                </div>
-                <span className="fw-bold">
-                  S/ {item.precio * item.cantidadSeleccionada}
-                </span>
-              </li>
-            ))}
+  <li
+    key={item.id}
+    className="list-group-item bg-dark text-white d-flex justify-content-between align-items-center"
+  >
+    <div>
+      <strong>{item.nombre}</strong>
+      <div className="small">
+        S/ {item.precio} x {item.cantidadSeleccionada}
+      </div>
+    </div>
+
+    <div className="d-flex align-items-center gap-2">
+      <span>
+        S/ {item.precio * item.cantidadSeleccionada}
+      </span>
+
+      <button
+        className="btn btn-sm btn-danger"
+        onClick={() => eliminarDelCarrito(item.id)}
+        title="Eliminar producto"
+      >
+        ❌
+      </button>
+    </div>
+  </li>
+))}
+
           </ul>
 
           {/* Totales */}
