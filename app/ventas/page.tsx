@@ -520,7 +520,7 @@ const eliminarDelCarrito = (id: number) => {
                 <div className="card-body d-flex flex-column">
                   <h5 className="card-title">{p.nombre}</h5>
                   <p className="card-text flex-grow-1">{p.descripcion}</p>
-                  <p className="mb-1"><strong>Precio:</strong> S/ {p.precio}</p>
+                  <p className="mb-1"><strong>Precio:</strong> Bs {p.precio}</p>
                   <p className="mb-2"><strong>Stock:</strong> {p.stock}</p>
                   <button
                     className={`btn ${p.stock === 0 ? 'btn-secondary' : 'btn-warning'} mt-auto`}
@@ -579,7 +579,7 @@ const eliminarDelCarrito = (id: number) => {
                 </div>
                 <div className="modal-body text-center">
                   <img src={modalProducto.imagen_url || '/default-product.png'} alt={modalProducto.nombre} className="img-fluid mb-3" />
-                  <p><strong>Precio:</strong> S/ {modalProducto.precio}</p>
+                  <p><strong>Precio:</strong> Bs {modalProducto.precio}</p>
                   <input
                   type="number"
                   className="form-control mb-3"
@@ -628,13 +628,13 @@ const eliminarDelCarrito = (id: number) => {
     <div>
       <strong>{item.nombre}</strong>
       <div className="small">
-        S/ {item.precio} x {item.cantidadSeleccionada}
+        Bs {item.precio} x {item.cantidadSeleccionada}
       </div>
     </div>
 
     <div className="d-flex align-items-center gap-2">
       <span>
-        S/ {item.precio * item.cantidadSeleccionada}
+        Bs {item.precio * item.cantidadSeleccionada}
       </span>
 
       <button
@@ -653,7 +653,7 @@ const eliminarDelCarrito = (id: number) => {
           {/* Totales */}
           <div className="border rounded p-3 mb-3 bg-light">
             <p className="mb-1">
-              <strong>Total a pagar:</strong> S/ {calcularTotalCompra()}
+              <strong>Total a pagar:</strong> Bs {calcularTotalCompra()}
             </p>
 
             <label className="form-label mt-2">Pago en efectivo</label>
@@ -669,10 +669,10 @@ const eliminarDelCarrito = (id: number) => {
 
             <div className="mt-2">
               <p className="mb-1">
-                 Pago en QR: <strong> S/ {Math.max(0, calcularTotalCompra() - (Number(efectivo) || 0))}</strong>
+                 Pago en QR: <strong> Bs {Math.max(0, calcularTotalCompra() - (Number(efectivo) || 0))}</strong>
               </p>
               <p className={`mb-0 fw-bold ${vuelto > 0 ? 'text-success' : ''}`}>
-                 Vuelto: S/ {vuelto}
+                 Vuelto: Bs {vuelto}
               </p>
             </div>
           </div>
@@ -745,11 +745,11 @@ const eliminarDelCarrito = (id: number) => {
           <div>
             <strong>{item.nombre}</strong>
             <div className="small">
-              S/ {item.precio} x {item.cantidadSeleccionada}
+              Bs {item.precio} x {item.cantidadSeleccionada}
             </div>
           </div>
           <span>
-            S/ {item.precio * item.cantidadSeleccionada}
+            Bs {item.precio * item.cantidadSeleccionada}
           </span>
         </li>
       ))}
@@ -759,7 +759,7 @@ const eliminarDelCarrito = (id: number) => {
   <hr />
 
   <p>
-    <strong>Total:</strong> S/ {calcularTotalCompra()}
+    <strong>Total:</strong> Bs {calcularTotalCompra()}
   </p>
 
   <button
