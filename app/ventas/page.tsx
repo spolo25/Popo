@@ -734,7 +734,7 @@ const eliminarDelCarrito = (id: number) => {
           {/* Totales */}
           <div className="border rounded p-3 mb-3 bg-light">
             <p className="mb-1">
-              <strong>Total a pagar:</strong> Bs {calcularTotalCompra()}
+              <strong>Total a pagar:</strong> Bs {calcularTotalCompra().toFixed(1)}
             </p>
             {Number(regateo) === 5 && (
   <small className="text-danger">
@@ -785,7 +785,7 @@ const eliminarDelCarrito = (id: number) => {
                  Pago en QR: <strong> Bs {Math.max(0, calcularTotalCompra() - (Number(efectivo) || 0))}</strong>
               </p>
               <p className={`mb-0 fw-bold ${vuelto > 0 ? 'text-success' : ''}`}>
-                 Vuelto: Bs {vuelto}
+                 Vuelto: Bs {vuelto.toFixed(1)}
               </p>
             </div>
           </div>
