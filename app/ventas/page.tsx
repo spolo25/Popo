@@ -28,6 +28,7 @@ interface Venta {
   pagoEfectivo: number
   pagoQR: number
   total: number
+  regateo: number
 }
 
 
@@ -36,6 +37,12 @@ interface VentasPageProps {
 }
 
 export default function VentasPage({ fondoSrc }: VentasPageProps) {
+  const LIMITE = 20
+
+const [page, setPage] = useState(0)
+const [cargando, setCargando] = useState(false)
+const [hayMas, setHayMas] = useState(true)
+
   const [productos, setProductos] = useState<Producto[]>([])
   const [buscar, setBuscar] = useState('')
   const [modalProducto, setModalProducto] = useState<Producto | null>(null)
@@ -51,6 +58,8 @@ const [efectivo, setEfectivo] = useState<string>('')
   const [errorVerificacion, setErrorVerificacion] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [usuario, setUsuario] = useState<string>('')
+  const [regateo, setRegateo] = useState<string>('0')
+
 
 
 useEffect(() => {
@@ -66,17 +75,14 @@ useEffect(() => {
   obtenerUsuario()
 }, [])
 
+
   // Cargar productos y ventas persistentes
-  useEffect(() => {
-    const fetchProductos = async () => {
-      const { data, error } = await supabase.from('productos').select('*')
-      if (!error) setProductos(data as Producto[])
-    }
-    fetchProductos()
+ useEffect(() => {
+  cargarProductos(0,buscar)
 
     const ventasGuardadas = localStorage.getItem('ventas')
     if (ventasGuardadas) setVentas(JSON.parse(ventasGuardadas))
-  }, [])
+  }, [buscar])
 
   // Guardar ventas en localStorage
   useEffect(() => {
@@ -94,6 +100,42 @@ useEffect(() => {
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [ventas])
+  const cargarProductos = async (
+  pageActual = 0,
+  texto = ''
+) => {
+  const LIMITE = 20
+
+  let query = supabase
+    .from('productos')
+    .select('*')
+
+  // 🔎 SI HAY BÚSQUEDA → BUSCA EN TODO
+  if (texto.trim() !== '') {
+    query = query
+      .ilike('nombre', `%${texto}%`)
+      .range(0, LIMITE - 1)
+  } 
+  // 📦 SI NO HAY BÚSQUEDA → PAGINA NORMAL
+  else {
+    const desde = pageActual * LIMITE
+    const hasta = desde + LIMITE - 1
+    query = query.range(desde, hasta)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error(error)
+    return
+  }
+
+  setProductos(data)
+  setHayMas(texto.trim() === '' && data.length === LIMITE)
+  setPage(texto ? 1 : pageActual + 1)
+}
+
+
 
   const productosFiltrados = productos.filter(p =>
     p.nombre.toLowerCase().includes(buscar.toLowerCase())
@@ -137,7 +179,16 @@ useEffect(() => {
 }
 
 
-  const calcularTotalCompra = () => carrito.reduce((acc, item) => acc + item.precio * item.cantidadSeleccionada, 0)
+const calcularTotalCompra = () => {
+  const subtotal = carrito.reduce(
+    (acc, item) => acc + item.precio * item.cantidadSeleccionada,
+    0
+  )
+
+  const descuento = Number(regateo) || 0
+
+  return Math.max(0, subtotal - descuento)
+}
 
  const handleEfectivoChange = (valor: string) => {
   setEfectivo(valor)
@@ -161,31 +212,39 @@ useEffect(() => {
 
 
   const finalizarCompra = () => {
-  const total = calcularTotalCompra()
+  const descuento = Number(regateo) || 0
+
+  const subtotal = carrito.reduce(
+    (acc, item) => acc + item.precio * item.cantidadSeleccionada,
+    0
+  )
+
+  const total = Math.max(0, subtotal - descuento)
   const efectivoNum = Number(efectivo) || 0
   const pagoQR = Math.max(0, total - efectivoNum)
 
   const fecha = new Date()
   const fechaStr = fecha.toLocaleDateString()
   const horaStr = fecha.toLocaleTimeString()
-
   const ventaId = `${Date.now()}`
 
   const nuevasVentas: Venta[] = carrito.map(item => {
     const totalItem = item.precio * item.cantidadSeleccionada
-    const proporcion = totalItem / total
+    const proporcion = totalItem / subtotal
 
     return {
-      ventaId,
-      fecha: fechaStr,
-      hora: horaStr,
-      producto: item.nombre,
-      cantidad: item.cantidadSeleccionada,
-      precioUnitario: item.precio,
-      pagoEfectivo: Math.round(Math.min(efectivoNum, total) * proporcion * 100) / 100,
-      pagoQR: Math.round(pagoQR * proporcion * 100) / 100,
-      total: totalItem
-    }
+  ventaId,
+  fecha: fechaStr,
+  hora: horaStr,
+  producto: item.nombre,
+  cantidad: item.cantidadSeleccionada,
+  precioUnitario: item.precio,
+  pagoEfectivo: Math.round(Math.min(efectivoNum, total) * proporcion * 100) / 100,
+  pagoQR: Math.round(pagoQR * proporcion * 100) / 100,
+  total: totalItem,
+  regateo: descuento 
+}
+
   })
 
   setVentas([...ventas, ...nuevasVentas])
@@ -196,7 +255,9 @@ useEffect(() => {
   setModalFinal(false)
   setEfectivo('')
   setVuelto(0)
+  setRegateo('0')
 }
+
 
 
 
@@ -244,10 +305,12 @@ useEffect(() => {
 
   Object.values(ventasAgrupadas).forEach(items => {
     wsData.push(
-      { Producto: `VENTA ${nro}` },
-      { Producto: `Fecha: ${items[0].fecha}`, Cantidad: `Hora: ${items[0].hora}` },
-      {}
-    )
+  { Producto: `VENTA ${nro}` },
+  { Producto: `Fecha: ${items[0].fecha}`, Cantidad: `Hora: ${items[0].hora}` },
+  { Producto: 'REGATEO APLICADO', Total: items[0].regateo },
+  {}
+)
+
 
     wsData.push({
       Producto: 'Producto',
@@ -358,10 +421,12 @@ wsData.push(
 
   Object.values(ventasAgrupadas).forEach(items => {
     wsData.push(
-      { Producto: `VENTA ${nroVenta}` },
-      { Producto: `Fecha: ${items[0].fecha}`, Cantidad: `Hora: ${items[0].hora}` },
-      {}
-    )
+  { Producto: `VENTA ${nroVenta}` },
+  { Producto: `Fecha: ${items[0].fecha}`, Cantidad: `Hora: ${items[0].hora}` },
+  { Producto: 'REGATEO APLICADO', Total: items[0].regateo },
+  {}
+)
+
 
     wsData.push({
       Producto: 'Producto',
@@ -534,6 +599,22 @@ const eliminarDelCarrito = (id: number) => {
             </div>
           ))}
         </div>
+        <div className="text-center mb-5">
+  {hayMas && buscar.trim() === '' && (
+  <button
+    className="btn btn-outline-primary w-100"
+    onClick={() => cargarProductos(page)}
+  >
+    Cargar más
+  </button>
+)}
+
+
+  {!hayMas && (
+    <p className="text-muted">No hay más productos</p>
+  )}
+</div>
+
 
 
         {/* Cerrar turno */}
@@ -655,6 +736,38 @@ const eliminarDelCarrito = (id: number) => {
             <p className="mb-1">
               <strong>Total a pagar:</strong> Bs {calcularTotalCompra()}
             </p>
+            {Number(regateo) === 5 && (
+  <small className="text-danger">
+    Máximo descuento permitido: 5 Bs
+  </small>
+)}
+
+            <label className="form-label mt-2">Descuento / Regateo (Bs)</label>
+            <input
+            type="number"
+            className="form-control"
+            min={0}
+            value={regateo}
+          onChange={e => {
+  const valor = Number(e.target.value) || 0
+
+  const subtotal = carrito.reduce(
+    (acc, item) => acc + item.precio * item.cantidadSeleccionada,
+    0
+  )
+
+  const regateoFinal = Math.min(valor, 5, subtotal)
+
+  setRegateo(regateoFinal.toString())
+}}
+            placeholder="Monto descontado al cliente"
+            />
+{Number(regateo) > 0 && (
+  <p className="text-danger mt-1">
+    - Bs {Number(regateo)}
+  </p>
+)}
+
 
             <label className="form-label mt-2">Pago en efectivo</label>
             <input
