@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { saveAs } from 'file-saver'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabaseClient'
+import { Navbar, Container, Nav, Form, Button } from 'react-bootstrap';
+
 
 interface Producto {
   id: number
@@ -59,6 +61,8 @@ const [efectivo, setEfectivo] = useState<string>('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [usuario, setUsuario] = useState<string>('')
   const [regateo, setRegateo] = useState<string>('0')
+  const [montoDepositado, setMontoDepositado] = useState<string>('')
+
 
 
 
@@ -268,6 +272,36 @@ const calcularTotalCompra = () => {
   const wb = XLSX.utils.book_new()
   const wsData: any[] = []
 
+// RESUMEN DE PRODUCTOS VENDIDOS
+const resumenProductos: Record<string, number> = {}
+
+ventas.forEach(v => {
+  if (!resumenProductos[v.producto]) {
+    resumenProductos[v.producto] = 0
+  }
+  resumenProductos[v.producto] += v.cantidad
+})
+
+wsData.push(
+  { Producto: 'RESUMEN DE PRODUCTOS VENDIDOS' },
+  {}
+)
+
+wsData.push({
+  Producto: 'Producto',
+  Cantidad: 'Cantidad Total Vendida'
+})
+
+Object.entries(resumenProductos).forEach(([producto, cantidad]) => {
+  wsData.push({
+    Producto: producto,
+    Cantidad: cantidad
+  })
+})
+
+wsData.push({}, {})
+
+
   // 🔴 RESUMEN GENERAL DEL TURNO
   const totalEfectivoTurno = ventas.reduce(
     (acc, v) => acc + v.pagoEfectivo,
@@ -361,6 +395,7 @@ const calcularTotalCompra = () => {
 
 
   const validarPasswordYEnviarCorreo = async () => {
+    
   setErrorVerificacion('')
 
   // 1️⃣ Usuario actual
@@ -393,9 +428,44 @@ const calcularTotalCompra = () => {
   // 4️⃣ Crear Excel AGRUPADO POR VENTA
   const wb = XLSX.utils.book_new()
   const wsData: any[] = []
+  // ===============================
+// RESUMEN DE PRODUCTOS VENDIDOS
+// ===============================
+const resumenProductos: Record<string, number> = {}
+
+ventas.forEach(v => {
+  if (!resumenProductos[v.producto]) {
+    resumenProductos[v.producto] = 0
+  }
+  resumenProductos[v.producto] += v.cantidad
+})
+
+
+wsData.push(
+  { Producto: 'RESUMEN DE PRODUCTOS VENDIDOS' },
+  {}
+)
+
+wsData.push({
+  Producto: 'Producto',
+  Cantidad: 'Cantidad Total Vendida'
+})
+
+Object.entries(resumenProductos).forEach(([producto, cantidad]) => {
+  wsData.push({
+    Producto: producto,
+    Cantidad: cantidad
+  })
+})
+
+wsData.push({}, {})
+
   const totalEfectivoTurno = ventas.reduce((acc, v) => acc + v.pagoEfectivo, 0)
 const totalQRTurno = ventas.reduce((acc, v) => acc + v.pagoQR, 0)
 const totalTurno = totalEfectivoTurno + totalQRTurno
+const depositado = Number(montoDepositado) || 0
+const diferencia = depositado - totalEfectivoTurno
+
 
 wsData.push(
   { Producto: 'RESUMEN GENERAL DEL TURNO' },
@@ -406,6 +476,28 @@ wsData.push(
   {},
   {}
 )
+// ===============================
+// CIERRE DE CAJA
+// ===============================
+wsData.push(
+  {},
+  { Producto: 'CIERRE DE CAJA' },
+  {},
+  { Producto: 'EFECTIVO ESPERADO', Total: totalEfectivoTurno },
+  { Producto: 'EFECTIVO DEPOSITADO', Total: depositado },
+  {
+    Producto:
+      diferencia === 0
+        ? 'CUADRE PERFECTO'
+        : diferencia > 0
+        ? 'SOBRANTE'
+        : 'FALTANTE',
+    Total: Math.abs(diferencia)
+  },
+  {},
+  {}
+)
+
 
 
   const ventasAgrupadas: Record<string, Venta[]> = {}
@@ -464,6 +556,7 @@ wsData.push(
 
     nroVenta++
   })
+  
 
   const ws = XLSX.utils.json_to_sheet(wsData, { skipHeader: true })
   XLSX.utils.book_append_sheet(wb, ws, 'Ventas')
@@ -474,13 +567,13 @@ wsData.push(
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   })
 
-  // ⬇️ Descarga automática
+  //  Descarga automática
   saveAs(
     blob,
     `cierre_turno_${new Date().toLocaleDateString().replaceAll('/', '-')}.xlsx`
   )
 
-  // 5️⃣ Enviar correo
+  //  Enviar correo
   const formData = new FormData()
   formData.append('file', blob, 'cierre_turno.xlsx')
   formData.append('closedBy', email)
@@ -535,34 +628,55 @@ const eliminarDelCarrito = (id: number) => {
       {/* Contenido */}
       <div style={{ position: 'relative', zIndex: 1 }}>
         {/* Navbar */}
-<nav
-  className="navbar navbar-expand-lg navbar-dark bg-dark px-3 sticky-top"
-  style={{ zIndex: 1000 }}
->
-  <a className="navbar-brand fw-bold" href="#">Licorería Popo</a>
+<Navbar bg="dark" variant="dark" expand="lg" sticky="top" className="w-100 shadow-sm py-3">
+  <Container fluid className="d-flex align-items-center px-3">
 
-  <div className="collapse navbar-collapse">
-    <form className="d-flex ms-auto">
-      <input
-        className="form-control me-2"
-        placeholder="Buscar producto..."
-        value={buscar}
-        onChange={e => setBuscar(e.target.value)}
-      />
-    </form>
+    {/* Logo */}
+    <Navbar.Brand href="#" className="fw-bold text-warning me-10 flex-shrink-0" style={{ fontSize: '1.3rem' }}>
+      Licorería Popo
+    </Navbar.Brand>
+    <span className="text-white fw-semibold me-4">Bienvenido {usuario}</span>
+    {/* Contenedor para buscador + toggle en línea */}
+    <div className="d-flex flex-grow-1 align-items-center">
+      {/* Buscador */}
+      <Form className="flex-grow-1 me-2">
+        <Form.Control
+          type="text"
+          placeholder="Buscar producto..."
+          value={buscar}
+          onChange={e => setBuscar(e.target.value)}
+          className="rounded-pill shadow-sm"
+        />
+      </Form>
 
-    <span className="text-white me-3">
-      <strong>Bienvenido {usuario}</strong>
-    </span>
+      {/* Toggle del collapse */}
+      <Navbar.Toggle aria-controls="basic-navbar-nav" />
+    </div>
 
-    <button
-      className="btn btn-outline-warning"
-      onClick={logout}
-    >
-      Cerrar sesión
-    </button>
-  </div>
-</nav>
+    {/* Collapse */}
+    <Navbar.Collapse id="basic-navbar-nav" className="justify-content-end mt-2 mt-lg-0">
+      <div className="d-flex flex-column flex-lg-row align-items-start align-lg-center gap-2">
+        
+        <Button 
+          variant="warning" 
+          className="fw-bold shadow-sm"
+          onClick={() => setModalVerificacion(true)}
+        >
+           Cerrar turno
+        </Button>
+        <Button 
+          variant="outline-light" 
+          className="fw-bold shadow-sm"
+          onClick={logout}
+        >
+           Cerrar sesión
+        </Button>
+      </div>
+    </Navbar.Collapse>
+
+  </Container>
+</Navbar>
+
 
 {/* ESPACIO DE SEGURIDAD */}
 <div style={{ height: '80px' }}></div>
@@ -617,9 +731,7 @@ const eliminarDelCarrito = (id: number) => {
 
 
 
-        {/* Cerrar turno */}
-        <button className="btn btn-danger mb-5" onClick={() => setModalVerificacion(true)}>Cerrar turno</button>
-
+        
         {/* Modales */}
         {/* Modal verificación */}
         {modalVerificacion && (
@@ -638,6 +750,14 @@ const eliminarDelCarrito = (id: number) => {
                     value={passwordVerificacion}
                     onChange={e => setPasswordVerificacion(e.target.value)}
                   />
+                  <input
+                  type="number"
+                  className="form-control mb-2"
+                  placeholder="Monto depositado en caja (Bs)"
+                  value={montoDepositado}
+                  onChange={e => setMontoDepositado(e.target.value)}
+                  />
+
                   {errorVerificacion && <p className="text-danger">{errorVerificacion}</p>}
                 </div>
                 <div className="modal-footer">
