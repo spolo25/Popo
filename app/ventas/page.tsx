@@ -666,17 +666,17 @@ const eliminarDelCarrito = (id: number) => {
 
       {ultimaVenta && (
   <div
-    className="mx-2 ps-3 px-3 py-1 rounded-pill fw-bold shadow-sm"
-
+    className="d-none d-lg-block mx-2 ps-3 px-3 py-1 rounded-pill fw-bold shadow-sm"
     style={{
       backgroundColor: '#ffc107',
       fontSize: '0.85rem',
       whiteSpace: 'nowrap'
     }}
   >
-     Última venta {ultimaVenta.hora} — Bs {ultimaVenta.total.toFixed(2)}
+    Última venta {ultimaVenta.hora} — Bs {ultimaVenta.total.toFixed(2)}
   </div>
 )}
+
 
 
       {/* Toggle del collapse */}
@@ -686,7 +686,18 @@ const eliminarDelCarrito = (id: number) => {
     {/* Collapse */}
     <Navbar.Collapse id="basic-navbar-nav" className="justify-content-end mt-2 mt-lg-0">
       <div className="d-flex flex-column flex-lg-row align-items-start align-lg-center gap-2">
-        
+        {ultimaVenta && (
+      <div
+      className="d-lg-none w-100 mb-2 px-3 py-2 rounded fw-bold text-center"
+      style={{
+      backgroundColor: '#ffc107',
+      fontSize: '0.85rem'
+      }}
+      >
+      Última venta {ultimaVenta.hora} — Bs {ultimaVenta.total.toFixed(2)}
+      </div>
+      )}
+
         <Button 
           variant="warning" 
           className="fw-bold shadow-sm"
