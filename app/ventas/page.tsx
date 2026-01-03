@@ -41,9 +41,8 @@ interface VentasPageProps {
 export default function VentasPage({ fondoSrc }: VentasPageProps) {
   const LIMITE = 20
 
-const [page, setPage] = useState(0)
-const [cargando, setCargando] = useState(false)
-const [hayMas, setHayMas] = useState(true)
+const [page, setPage] = useState(1)
+const [totalPaginas, setTotalPaginas] = useState(1)
 
   const [productos, setProductos] = useState<Producto[]>([])
   const [buscar, setBuscar] = useState('')
@@ -62,9 +61,20 @@ const [efectivo, setEfectivo] = useState<string>('')
   const [usuario, setUsuario] = useState<string>('')
   const [regateo, setRegateo] = useState<string>('0')
   const [montoDepositado, setMontoDepositado] = useState<string>('')
+  const [ultimaVenta, setUltimaVenta] = useState<{
+  hora: string
+  total: number
+} | null>(null)
 
 
 
+
+useEffect(() => {
+  const ventaGuardada = localStorage.getItem('ultimaVenta')
+  if (ventaGuardada) {
+    setUltimaVenta(JSON.parse(ventaGuardada))
+  }
+}, [])
 
 useEffect(() => {
   const obtenerUsuario = async () => {
@@ -82,7 +92,7 @@ useEffect(() => {
 
   // Cargar productos y ventas persistentes
  useEffect(() => {
-  cargarProductos(0,buscar)
+  cargarProductos(1,buscar)
 
     const ventasGuardadas = localStorage.getItem('ventas')
     if (ventasGuardadas) setVentas(JSON.parse(ventasGuardadas))
@@ -104,39 +114,31 @@ useEffect(() => {
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [ventas])
-  const cargarProductos = async (
-  pageActual = 0,
-  texto = ''
-) => {
-  const LIMITE = 20
+  const cargarProductos = async (pagina = 1, texto = '') => {
+  const desde = (pagina - 1) * LIMITE
+  const hasta = desde + LIMITE - 1
 
   let query = supabase
     .from('productos')
-    .select('*')
+    .select('*', { count: 'exact' })
 
-  // 🔎 SI HAY BÚSQUEDA → BUSCA EN TODO
   if (texto.trim() !== '') {
-    query = query
-      .ilike('nombre', `%${texto}%`)
-      .range(0, LIMITE - 1)
-  } 
-  // 📦 SI NO HAY BÚSQUEDA → PAGINA NORMAL
-  else {
-    const desde = pageActual * LIMITE
-    const hasta = desde + LIMITE - 1
-    query = query.range(desde, hasta)
+    query = query.ilike('nombre', `%${texto}%`)
   }
 
-  const { data, error } = await query
+  const { data, error, count } = await query.range(desde, hasta)
 
   if (error) {
     console.error(error)
     return
   }
 
-  setProductos(data)
-  setHayMas(texto.trim() === '' && data.length === LIMITE)
-  setPage(texto ? 1 : pageActual + 1)
+  setProductos(data || [])
+  setPage(pagina)
+
+  if (count) {
+    setTotalPaginas(Math.ceil(count / LIMITE))
+  }
 }
 
 
@@ -229,7 +231,11 @@ const calcularTotalCompra = () => {
 
   const fecha = new Date()
   const fechaStr = fecha.toLocaleDateString()
-  const horaStr = fecha.toLocaleTimeString()
+  const horaStr = fecha.toLocaleTimeString('es-BO', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+
   const ventaId = `${Date.now()}`
 
   const nuevasVentas: Venta[] = carrito.map(item => {
@@ -237,30 +243,37 @@ const calcularTotalCompra = () => {
     const proporcion = totalItem / subtotal
 
     return {
-  ventaId,
-  fecha: fechaStr,
-  hora: horaStr,
-  producto: item.nombre,
-  cantidad: item.cantidadSeleccionada,
-  precioUnitario: item.precio,
-  pagoEfectivo: Math.round(Math.min(efectivoNum, total) * proporcion * 100) / 100,
-  pagoQR: Math.round(pagoQR * proporcion * 100) / 100,
-  total: totalItem,
-  regateo: descuento 
-}
-
+      ventaId,
+      fecha: fechaStr,
+      hora: horaStr,
+      producto: item.nombre,
+      cantidad: item.cantidadSeleccionada,
+      precioUnitario: item.precio,
+      pagoEfectivo:
+        Math.round(Math.min(efectivoNum, total) * proporcion * 100) / 100,
+      pagoQR: Math.round(pagoQR * proporcion * 100) / 100,
+      total: totalItem,
+      regateo: descuento
+    }
   })
 
   setVentas([...ventas, ...nuevasVentas])
 
-  alert('✅ Compra finalizada')
+  // ✅ GUARDAR ÚLTIMA VENTA
+  const ultima = { hora: horaStr, total }
+  setUltimaVenta(ultima)
+  localStorage.setItem('ultimaVenta', JSON.stringify(ultima))
 
+  alert('Compra finalizada')
+
+  // 🧹 LIMPIEZA
   setCarrito([])
   setModalFinal(false)
   setEfectivo('')
   setVuelto(0)
   setRegateo('0')
 }
+
 
 
 
@@ -588,13 +601,14 @@ wsData.push(
     return
   }
 
-  // 6️⃣ Cierre definitivo
   alert('✅ Turno cerrado, Excel descargado y correo enviado.')
-
   setVentas([])
   localStorage.removeItem('ventas')
+  setUltimaVenta(null)
+  localStorage.removeItem('ultimaVenta')
   setPasswordVerificacion('')
   setModalVerificacion(false)
+
 }
 const eliminarDelCarrito = (id: number) => {
   setCarrito(carrito.filter(item => item.id !== id))
@@ -648,6 +662,22 @@ const eliminarDelCarrito = (id: number) => {
           className="rounded-pill shadow-sm"
         />
       </Form>
+
+
+      {ultimaVenta && (
+  <div
+    className="mx-2 ps-3 px-3 py-1 rounded-pill fw-bold shadow-sm"
+
+    style={{
+      backgroundColor: '#ffc107',
+      fontSize: '0.85rem',
+      whiteSpace: 'nowrap'
+    }}
+  >
+     Última venta {ultimaVenta.hora} — Bs {ultimaVenta.total.toFixed(2)}
+  </div>
+)}
+
 
       {/* Toggle del collapse */}
       <Navbar.Toggle aria-controls="basic-navbar-nav" />
@@ -714,19 +744,20 @@ const eliminarDelCarrito = (id: number) => {
           ))}
         </div>
         <div className="text-center mb-5">
-  {hayMas && buscar.trim() === '' && (
-  <button
-    className="btn btn-outline-primary w-100"
-    onClick={() => cargarProductos(page)}
-  >
-    Cargar más
-  </button>
-)}
+ <div className="d-flex justify-content-center gap-2 my-4 flex-wrap">
+  {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(num => (
+    <button
+      key={num}
+      className={`btn ${
+        page === num ? 'btn-warning' : 'btn-outline-light'
+      }`}
+      onClick={() => cargarProductos(num, buscar)}
+    >
+      {num}
+    </button>
+  ))}
+</div>
 
-
-  {!hayMas && (
-    <p className="text-muted">No hay más productos</p>
-  )}
 </div>
 
 
